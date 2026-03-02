@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Hanzi Flow - Zen Fields Edition</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js"></script>
+    <script src="https://unpkg.com/pinyin-pro"></script>
+
+    <style>
+        :root {
+            /* Theme Colors: Inspired by Tea & Rice Fields */
+            --accent: #52ad8c; /* Matcha Green */
+            --accent-glow: rgba(82, 173, 140, 0.3);
+            --glass-bg: rgba(255, 255, 255, 0.07);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --tea-deep: #1a2f23;
+            --rice-bright: #e0f2e9;
+        }
+
+        body {
+            margin: 0; 
+            font-family: -apple-system, "SF Pro Display", "Helvetica Neue", sans-serif;
+            background: var(--tea-deep);
+            height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            color: white;
+            overflow: hidden;
+        }
+
+        /* Animated Rice Terrace Background */
+        .ambient-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(at 0% 0%, #2d5a27 0px, transparent 50%),
+                radial-gradient(at 100% 0%, #1e3a1a 0px, transparent 50%),
+                radial-gradient(at 100% 100%, #52ad8c 0px, transparent 50%),
+                radial-gradient(at 0% 100%, #0f2016 0px, transparent 50%);
+            z-index: -1;
+            filter: blur(60px);
+            animation: drift 20s infinite alternate ease-in-out;
+        }
+
+        @keyframes drift {
+            from { transform: scale(1); }
+            to { transform: scale(1.1) rotate(2deg); }
+        }
+
+        .app-container {
+            width: 360px; 
+            height: 720px; 
+            padding: 30px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(40px) saturate(150%);
+            -webkit-backdrop-filter: blur(40px) saturate(150%);
+            border-radius: 50px; 
+            border: 1px solid var(--glass-border);
+            display: flex; 
+            flex-direction: column;
+            position: relative;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,255,255,0.1);
+        }
+
+        /* Themed Color Orb */
+        .color-orb {
+            position: absolute;
+            top: 30px; right: 30px;
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+            cursor: pointer;
+            border: 2px solid rgba(255,255,255,0.8);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+        .color-orb:hover { transform: scale(1.15); }
+
+        .search-row { 
+            display: flex; 
+            gap: 12px; 
+            margin-top: 10px;
+            margin-bottom: 35px; 
+            margin-right: 45px; 
+        }
+        
+        input {
+            flex-grow: 1; 
+            padding: 14px 20px; 
+            border-radius: 30px; /* Fully rounded */
+            border: 1px solid var(--glass-border);
+            background: rgba(0, 0, 0, 0.2); 
+            color: white; 
+            font-size: 16px;
+            outline: none;
+            transition: all 0.3s;
+        }
+        input:focus { background: rgba(0, 0, 0, 0.4); border-color: var(--accent); }
+
+        /* Floating Glass Canvas */
+        .canvas-outer {
+            width: 220px;
+            height: 220px;
+            margin: 0 auto 35px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 45px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+
+        #character-target { width: 180px; height: 180px; filter: drop-shadow(0 0 10px var(--accent-glow)); }
+
+        .stats-grid {
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            margin-bottom: 35px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.04); 
+            padding: 16px; 
+            border-radius: 30px; /* Fully rounded */
+            text-align: center;
+            border: 1px solid var(--glass-border);
+        }
+
+        .stat-label { font-size: 10px; opacity: 0.5; letter-spacing: 2px; font-weight: 800; margin-bottom: 5px; text-transform: uppercase; }
+        .stat-val { font-size: 24px; font-weight: 300; color: white; }
+
+        /* Meaning Tray */
+        .meaning-tray {
+            flex-grow: 1; 
+            overflow-y: auto; 
+            padding-right: 5px;
+        }
+        .meaning-tray::-webkit-scrollbar { width: 0px; }
+
+        .tray-header { font-size: 11px; opacity: 0.4; letter-spacing: 3px; margin-bottom: 20px; font-weight: 700; text-align: center;}
+
+        .sense-item {
+            display: flex; 
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 20px 25px; 
+            border-radius: 35px; /* Pill shape */
+            margin-bottom: 12px; 
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .sense-item.active { 
+            background: rgba(255, 255, 255, 0.12);
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .sense-char { font-size: 28px; font-weight: 300; }
+        .sense-pinyin { font-size: 15px; opacity: 0.6; font-weight: 300; }
+
+        .main-btn {
+            background: var(--accent); 
+            color: white; 
+            border: none; 
+            padding: 0 25px;
+            border-radius: 30px; /* Fully rounded */
+            font-weight: 600; 
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px var(--accent-glow);
+        }
+        .main-btn:hover { filter: brightness(1.1); }
+        .main-btn:active { transform: scale(0.92); }
+    </style>
+</head>
+<body>
+
+<div class="ambient-bg"></div>
+
+<div class="app-container">
+    <div class="color-orb" onclick="cycleColor()" title="Change Essence"></div>
+
+    <div class="search-row">
+        <input type="text" id="englishInput" placeholder="Enter meaning...">
+        <button onclick="searchHanzi()" class="main-btn">Find</button>
+    </div>
+
+    <div class="canvas-outer">
+        <div id="character-target" onclick="writer.animateCharacter()"></div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-label">Pinyin</div>
+            <div id="pinyinVal" class="stat-val">--</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Strokes</div>
+            <div id="strokeVal" class="stat-val">0</div>
+        </div>
+    </div>
+
+    <div class="meaning-tray">
+        <div class="tray-header">SELECT SYMBOL</div>
+        <div id="senseList"></div>
+    </div>
+</div>
+
+<script>
+    let writer;
+    let currentChar = "";
+    const { pinyin } = pinyinPro;
+
+    const themes = [
+        { main: '#52ad8c', glow: 'rgba(82, 173, 140, 0.4)' }, // Matcha
+        { main: '#a8dadc', glow: 'rgba(168, 218, 220, 0.4)' }, // Morning Mist
+        { main: '#e9c46a', glow: 'rgba(233, 196, 106, 0.4)' }, // Golden Harvest
+        { main: '#e76f51', glow: 'rgba(231, 111, 81, 0.4)' },  // Terracotta
+        { main: '#81b29a', glow: 'rgba(129, 178, 154, 0.4)' }  // Sage
+    ];
+    let themeIndex = 0;
+
+    function cycleColor() {
+        themeIndex = (themeIndex + 1) % themes.length;
+        const theme = themes[themeIndex];
+        document.documentElement.style.setProperty('--accent', theme.main);
+        document.documentElement.style.setProperty('--accent-glow', theme.glow);
+        if(currentChar) loadChar(currentChar);
+    }
+
+    async function searchHanzi() {
+        const query = document.getElementById('englishInput').value;
+        if (!query) return;
+
+        try {
+            const response = await fetch(`https://api.mymemory.translated.net/get?q=${query}&langpair=en|zh`);
+            const data = await response.json();
+            const translatedText = data.responseData.translatedText;
+            const matches = translatedText.match(/[\u4e00-\u9fa5]/g) || [];
+            const uniqueChars = [...new Set(matches)];
+
+            if (uniqueChars.length === 0) return;
+
+            renderSenses(uniqueChars);
+            loadChar(uniqueChars[0]);
+        } catch (e) { console.error(e); }
+    }
+
+    function renderSenses(chars) {
+        const list = document.getElementById('senseList');
+        list.innerHTML = chars.map(char => `
+            <div class="sense-item" id="sense-${char}" onclick="loadChar('${char}')">
+                <span class="sense-char">${char}</span>
+                <span class="sense-pinyin">${pinyin(char)}</span>
+            </div>
+        `).join('');
+    }
+
+    function loadChar(char) {
+        currentChar = char;
+        document.querySelectorAll('.sense-item').forEach(el => el.classList.remove('active'));
+        document.getElementById(`sense-${char}`)?.classList.add('active');
+
+        document.getElementById('pinyinVal').innerText = pinyin(char);
+        document.getElementById('character-target').innerHTML = '';
+        
+        const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+
+        writer = HanziWriter.create('character-target', char, {
+            width: 180, height: 180, padding: 5,
+            strokeColor: accentColor, 
+            outlineColor: 'rgba(255,255,255,0.08)',
+            onLoadCharDataSuccess: (data) => {
+                document.getElementById('strokeVal').innerText = data.strokes.length;
+                writer.animateCharacter();
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
